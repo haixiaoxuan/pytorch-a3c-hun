@@ -1,6 +1,4 @@
 import time
-from collections import deque
-
 import torch
 import torch.nn.functional as F
 
@@ -18,7 +16,6 @@ def test(rank, args, shared_model, counter):
     :return:
     """
     torch.manual_seed(args.seed + rank)
-
     env = create_atari_env(args.env_name)
     env.seed(args.seed + rank)
 
@@ -85,7 +82,6 @@ if __name__ == "__main__":
     model = ActorCritic(env.observation_space.shape[0], env.action_space)
     # model.load_state_dict(torch.load('model.pkl'))
     model.load_state_dict(torch.load('model-max-reward.pkl'))
-    # model.load_state_dict(torch.load('data/model/model-10-26-17-00.pkl'))
 
     obs = env.reset()
     state = torch.from_numpy(obs)
@@ -102,7 +98,6 @@ if __name__ == "__main__":
         value, logit, (hx, cx) = model((state.unsqueeze(0), (hx, cx)))
         prob = F.softmax(logit, dim=-1)
         # action = prob.multinomial(num_samples=1).numpy()[0, 0]
-
         action = prob.max(1, keepdim=True)[1].numpy()[0, 0]
         state, reward, done, info = env.step(action)
 

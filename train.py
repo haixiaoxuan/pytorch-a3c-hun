@@ -63,11 +63,11 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
         rewards = []            # 单步奖励
         entropies = []          # cross-entropy
 
-        run_actions = []
         for i in range(args.num_steps):
             episode_length += 1
 
             value, logit, (hx, cx) = model((state.unsqueeze(0), (hx, cx)))
+            # value, logit, (hx, cx) = model((state, (hx, cx)))
 
             prob = F.softmax(logit, dim=-1)
             log_prob = F.log_softmax(logit, dim=-1)
@@ -81,7 +81,6 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
             state, reward, done, info = env.step(action)
             total_rewards += reward
 
-            run_actions.append(action)
             done = done or episode_length >= args.max_episode_length
 
             with lock:
@@ -138,5 +137,5 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
 
         writer.add_scalar("policy_loss/{0}".format(rank), policy_loss, total_update_times)
         writer.add_scalar("value_loss/{0}".format(rank), value_loss, total_update_times)
-
+        writer.add_scalar("entropy_loss/{0}".format(rank), -sum(entropies), total_update_times)
         # writer.flush()

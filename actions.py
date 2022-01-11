@@ -6,48 +6,39 @@
 
 
 ACTIONS = [
-    ['NOOP'],
+    ["NOOP"],
+    ["B"],
+    ["A", "B"],
+    ["down"],
+    ["down", "B"],
+    ["down", "A", "B"],
 
-    ['right', 'B'],
-    ['right', 'A', 'B'],
+    ["up"],
+    ["up", "B"],
+    ["up", "A", "B"],
 
-    ['B'],
-    ['down', 'B'],
+    ["right"],
+    ["right", "B"],
+    ["right", "A", "B"],
 
-    ['right', 'A', 'B', 'up'],
-    ['right', 'A', 'B', 'down'],
+    ["right", "up"],
+    ["right", "B", "up"],
+    ["right", "A", "B", "up"],
 
-    ['right', 'B', 'up'],
-    ['right', 'B', 'down'],
+    ["right", "down"],
+    ["right", "B", "down"],
+    ["right", "A", "B", "down"],
 ]
 
+ACTIONS_MASK = {}
 
-[
-    ['NOOP'],
-    # ['right'],
-    # ['right', 'A'],
-    ['right', 'B'],
-    # ['right', 'A', 'up'],
-    ['right', 'B', 'up'],
-    ['right', 'A', 'B', 'up'],
-    # ['A'],
-    ['B'],
-    ['A', 'B'],
 
-    # ['left'],
-    # ['left', 'A'],
-    # ['left', 'B'],
-    # ['left', 'A', 'up'],
-    # ['left', 'B', 'up'],
-    # ['left', 'A', 'B', 'up'],
+def gen_action_mask():
+    for idx, ele in enumerate(ACTIONS):
+        if "A" in ele or "B" in ele:
+            for i in range(1, 3):
+                if "A" not in ACTIONS[idx - i] and "B" not in ACTIONS[idx - i]:
+                    ACTIONS_MASK[idx] = idx - i
 
-    # ['down', 'A'],
-    ['down', 'B'],
-    ['down', 'A', 'B'],
-    ['right', 'down', 'B'],
 
-    # ['up', 'A'],
-    ['up', 'B'],
-    ['up', 'A', 'B'],
-    ['right', 'up', 'B']
-]
+gen_action_mask()

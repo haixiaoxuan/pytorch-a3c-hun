@@ -3,9 +3,11 @@ import gym
 import numpy as np
 from gym.spaces.box import Box
 from nes_py.wrappers import JoypadSpace
-from actions import ACTIONS
+from actions import ACTIONS, ACTIONS_MASK
 import matplotlib.pyplot as plt
 from collections import deque
+import Contra
+import time
 
 
 def create_atari_env(env_id):
@@ -13,12 +15,12 @@ def create_atari_env(env_id):
     env = JoypadSpace(env, ACTIONS)
     env = AtariRescale84x84(env)
     env = NormalizedEnv(env)
-    env = ControllerStepEnv(env, ACTIONS)
+    env = ControllerStepEnv(env)
     return env
 
 
 def _process_frame42(frame):
-    frame = frame[34:]
+    # frame = frame[34:]
     frame = cv2.resize(frame, (84, 84))
     frame = frame.mean(2, keepdims=True)
     frame = frame.astype(np.float32)
@@ -30,7 +32,7 @@ def _process_frame42(frame):
 class AtariRescale84x84(gym.ObservationWrapper):
     def __init__(self, env=None):
         super(AtariRescale84x84, self).__init__(env)
-        self.observation_space = Box(0.0, 1.0, [1, 84, 84])
+        self.observation_space = Box(0.0, 1.0, [4, 84, 84])
 
     def observation(self, observation):
         return _process_frame42(observation)
@@ -57,56 +59,45 @@ class NormalizedEnv(gym.ObservationWrapper):
 
 
 class ControllerStepEnv:
-    def __init__(self, env, acts):
+    def __init__(self, env):
         self.env = env
-
-        # 包含动作A或者B的action
-        self.__spe_act = []
-        for i, a in enumerate(acts):
-            if ("A" in a) or ("B" in a):
-                self.__spe_act.append(i)
-
-        # 包含right的action
-        self.__right_act = []
-        for i, a in enumerate(acts):
-            if "right" in a:
-                self.__right_act.append(i)
-
-        # 同时包含 down 和 right 的action
-        self.__down_right_action = []
-        for i, a in enumerate(acts):
-            if ("down" in a) and ("right" in a):
-                self.__down_right_action.append(i)
 
         self.observation_space = env.observation_space
         self.action_space = env.action_space
 
-        self.__before_action = -1
         self.__before_score = 0
         self.__before_life = 2
         self.__before_status = 1
 
-        self.__before_2000_action = deque(maxlen=300)
+        self.__before_actions = deque(maxlen=128)
 
         self.__unchanged_score_steps = 0
         self.__unchanged_reward_steps = 0
 
         self.__killed_reward = -50
-        self.__continue_score_zero = 512
-        self.__continue_reward_zero = 512
+        self.__continue_score_zero = 128
+        self.__continue_reward_zero = 128
+
+        self.__right_actions = []
+        for idx, a in enumerate(ACTIONS):
+            if "right" in a:
+                self.__right_actions.append(idx)
 
     def seed(self, seed):
         self.env.seed(seed)
 
     def step(self, action):
-        if (self.__before_action == action) and (action in self.__spe_act):
-            self.env.step(0)
-            self.__before_action = -1
-        else:
-            self.__before_action = action
-            
-        # cal reward
-        state, reward, done, info = self.env.step(action)
+        states = []
+        rewards = []
+
+        for i in range(4):
+            if i in (1, 3) and action in ACTIONS_MASK.keys():
+                state, reward, done, info = self.env.step(ACTIONS_MASK[action])
+            else:
+                state, reward, done, info = self.env.step(action)
+
+            states.append(state)
+            rewards.append(reward)
 
         if self.__before_score == info["score"]:
             self.__unchanged_score_steps += 1
@@ -115,12 +106,6 @@ class ControllerStepEnv:
         
         reward = info["score"] - self.__before_score
         self.__before_score = info["score"]
-
-        # if action in self.__right_act:
-        #     reward += 0.05
-
-        # if info["y_pos"] == 43 and action in self.__down_right_action:
-        #     reward -= 0.1
 
         # 没命
         if info["life"] != self.__before_life or info["status"] != self.__before_status:
@@ -133,8 +118,8 @@ class ControllerStepEnv:
             done = True
 
         # 连续重复动作
-        self.__before_2000_action.append(action)
-        if self.__before_2000_action.count(action) == self.__before_2000_action.maxlen:
+        self.__before_actions.append(action)
+        if self.__before_actions.count(action) == self.__before_actions.maxlen:
             reward = self.__killed_reward
             done = True
 
@@ -147,24 +132,27 @@ class ControllerStepEnv:
             reward = self.__killed_reward
             done = True
 
-        return state, reward, done, info
+        if action not in self.__right_actions:
+            reward -= 0.05
+
+        return np.concatenate(states, axis=0), reward, done, info
 
     def reset(self):
-        self.__before_action = -1
         self.__before_score = 0
         self.__before_life = 2
         self.__before_status = 1
-        self.__before_2000_action.clear()
+        self.__before_actions.clear()
         self.__unchanged_score_steps = 0
         self.__unchanged_reward_steps = 0
-        return self.env.reset()
+        obs = self.env.reset()
+        return np.concatenate([obs, obs, obs, obs], axis=0)
 
     def render(self):
         self.env.render()
 
     def close(self):
         self.env.close()
-        self.__before_2000_action.clear()
+        self.__before_actions.clear()
 
 
 def test():
@@ -173,23 +161,24 @@ def test():
     done = False
     env.reset()
 
+    step = 0
     actions = []
-    for _ in range(100000):
+    for _ in range(10000):
         if done:
             print("Over")
             break
-        # time.sleep(0.02)
+        # time.sleep(1)
 
         action = env.action_space.sample()
-        # action = 6
+        # action = 2
 
         actions.append(action)
         state, reward, done, info = env.step(action)
-        print(reward, info, action)
+        step += 1
+        print(reward, info, action, "==============>{0}<=============".format(step))
         env.render()
 
     env.close()
-    print(set(actions))
 
 
 def test_pre():
@@ -201,7 +190,6 @@ def test_pre():
     plt.imshow(obs)
     plt.show()
 
-    obs = obs[35:]  # crop
     plt.imshow(obs)
     plt.show()
 
