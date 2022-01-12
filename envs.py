@@ -69,14 +69,14 @@ class ControllerStepEnv:
         self.__before_life = 2
         self.__before_status = 1
 
-        self.__before_actions = deque(maxlen=128)
+        self.__before_actions = deque(maxlen=256)
 
         self.__unchanged_score_steps = 0
         self.__unchanged_reward_steps = 0
 
         self.__killed_reward = -50
-        self.__continue_score_zero = 128
-        self.__continue_reward_zero = 128
+        self.__continue_score_zero = 256
+        self.__continue_reward_zero = 256
 
         self.__right_actions = []
         for idx, a in enumerate(ACTIONS):
@@ -133,7 +133,12 @@ class ControllerStepEnv:
             done = True
 
         if action not in self.__right_actions:
-            reward -= 0.05
+            reward -= 0.1
+        elif info["x_pos"] <= 128:
+            reward += 0.05
+
+        if info["y_pos"] <= 43:
+            reward -= 0.1
 
         return np.concatenate(states, axis=0), reward, done, info
 

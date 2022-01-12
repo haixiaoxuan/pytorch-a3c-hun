@@ -80,8 +80,8 @@ if __name__ == "__main__":
     env = create_atari_env("Contra-v0")
     env.seed(26)
     model = ActorCritic(env.observation_space.shape[0], env.action_space)
-    # model.load_state_dict(torch.load('model.pkl'))
-    model.load_state_dict(torch.load('model-max-reward.pkl'))
+    model.load_state_dict(torch.load('model.pkl'))
+    # model.load_state_dict(torch.load('model-max-reward.pkl'))
 
     obs = env.reset()
     state = torch.from_numpy(obs)
@@ -107,8 +107,8 @@ if __name__ == "__main__":
         if steps % 10 == 0:
             print("\n\n")
 
-        print(reward, info, action, round(reward_sum, 2))
-        print(prob)
+        print(reward, info, action, round(reward_sum, 2), steps, sep="\t")
+        # print(prob)
         state = torch.from_numpy(state)
         reward_sum += reward
         steps += 1

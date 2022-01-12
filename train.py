@@ -9,11 +9,18 @@ import datetime
 
 
 def ensure_shared_grads(model, shared_model):
+    grads_mean = []
+    grads_max = []
+    grads_min = []
     # 共享梯度
     for param, shared_param in zip(model.parameters(), shared_model.parameters()):
         if shared_param.grad is not None:
             return
         shared_param._grad = param.grad
+        grads_mean.append(param.grad.mean())
+        grads_max.append(param.grad.max())
+        grads_min.append(param.grad.min())
+    print(sum(grads_mean) / len(grads_mean), max(grads_max), min(grads_min))
 
 
 def train(rank, args, shared_model, counter, lock, optimizer=None):
@@ -138,4 +145,8 @@ def train(rank, args, shared_model, counter, lock, optimizer=None):
         writer.add_scalar("policy_loss/{0}".format(rank), policy_loss, total_update_times)
         writer.add_scalar("value_loss/{0}".format(rank), value_loss, total_update_times)
         writer.add_scalar("entropy_loss/{0}".format(rank), -sum(entropies), total_update_times)
+        writer.add_scalar("total_loss/{0}".format(rank), policy_loss + args.value_loss_coef * value_loss, total_update_times)
+        # writer.add_scalar("grad_mean/{0}".format(rank), grad_mean, total_update_times)
+        # writer.add_scalar("grad_max/{0}".format(rank), grad_max, total_update_times)
+        # writer.add_scalar("grad_min/{0}".format(rank), grad_min, total_update_times)
         # writer.flush()
