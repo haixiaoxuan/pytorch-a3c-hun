@@ -80,8 +80,11 @@ if __name__ == "__main__":
     env = create_atari_env("Contra-v0")
     env.seed(26)
     model = ActorCritic(env.observation_space.shape[0], env.action_space)
-    model.load_state_dict(torch.load('model.pkl'))
+
+    # model.load_state_dict(torch.load('model.pkl'))
     # model.load_state_dict(torch.load('model-max-reward.pkl'))
+    model.load_state_dict(torch.load('data/model/model_01_12.pkl'))
+    # model.load_state_dict(torch.load('data/model/model.pkl'))
 
     obs = env.reset()
     state = torch.from_numpy(obs)

@@ -35,7 +35,7 @@ parser.add_argument("--env-name", default="Contra-v0",
 parser.add_argument("--no-shared", default=False,
                     help="use an optimizer without shared momentum.")
 
-parser.add_argument("--retrain", default=True)
+parser.add_argument("--retrain", default=False)
 
 
 if __name__ == "__main__":

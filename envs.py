@@ -132,10 +132,11 @@ class ControllerStepEnv:
             reward = self.__killed_reward
             done = True
 
-        if action not in self.__right_actions:
-            reward -= 0.1
-        elif info["x_pos"] <= 128:
-            reward += 0.05
+        if info["x_pos"] <= 128:
+            if action not in self.__right_actions:
+                reward -= 0.1
+            else:
+                reward += 0.05
 
         if info["y_pos"] <= 43:
             reward -= 0.1
