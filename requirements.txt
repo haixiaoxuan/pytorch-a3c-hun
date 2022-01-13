@@ -1,0 +1,7 @@
+Contra==0.1.0
+gym==0.17.3
+matplotlib==3.3.2
+nes_py==8.1.6
+numpy==1.18.5
+opencv_python==4.5.1.48
+torch==1.9.1
