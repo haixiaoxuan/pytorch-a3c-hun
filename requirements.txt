@@ -5,3 +5,4 @@ nes_py==8.1.6
 numpy==1.18.5
 opencv_python==4.5.1.48
 torch==1.9.1
+gym-contra==0.1.1

@@ -11,7 +11,7 @@ import time
 
 
 def create_atari_env(env_id):
-    env = gym.make(env_id)
+    env = gym.make(env_id, target=(2, 4))
     env = JoypadSpace(env, ACTIONS)
     env = AtariRescale84x84(env)
     env = NormalizedEnv(env)
@@ -66,7 +66,6 @@ class ControllerStepEnv:
         self.action_space = env.action_space
 
         self.__before_score = 0
-        self.__before_life = 2
         self.__before_status = 1
 
         self.__before_actions = deque(maxlen=256)
@@ -74,30 +73,53 @@ class ControllerStepEnv:
         self.__unchanged_score_steps = 0
         self.__unchanged_reward_steps = 0
 
-        self.__killed_reward = -50
+        self.__killed_reward = -10
         self.__continue_score_zero = 256
         self.__continue_reward_zero = 256
+        self.__steps_num = 0
 
         self.__right_actions = []
         for idx, a in enumerate(ACTIONS):
             if "right" in a:
                 self.__right_actions.append(idx)
 
+        self.states = np.zeros((4, 84, 84), dtype=np.float32)
+        self.flag = False
+
     def seed(self, seed):
         self.env.seed(seed)
 
     def step(self, action):
-        states = []
-        rewards = []
+        # 01_12
+        # states = []
+        # rewards = []
+        # for i in range(4):
+        #     if i in (1, 3) and action in ACTIONS_MASK.keys():
+        #         state, reward, done, info = self.env.step(ACTIONS_MASK[action])
+        #     else:
+        #         state, reward, done, info = self.env.step(action)
+        #     states.append(state)
+        #     rewards.append(reward)
 
+        # 01_14
+        last_states = deque(maxlen=2)
+        rewards = []
         for i in range(4):
             if i in (1, 3) and action in ACTIONS_MASK.keys():
                 state, reward, done, info = self.env.step(ACTIONS_MASK[action])
             else:
                 state, reward, done, info = self.env.step(action)
-
-            states.append(state)
             rewards.append(reward)
+            last_states.append(state)
+            if done:
+                with open("down.log", "w") as f:
+                    f.write(str(info))
+                reward += 1000
+                break
+        self.__steps_num += 1
+        max_state = np.max(np.concatenate(last_states, 0), 0)
+        self.states[:-1] = self.states[1:]
+        self.states[-1] = max_state
 
         if self.__before_score == info["score"]:
             self.__unchanged_score_steps += 1
@@ -108,18 +130,18 @@ class ControllerStepEnv:
         self.__before_score = info["score"]
 
         # 没命
-        if info["life"] != self.__before_life or info["status"] != self.__before_status:
+        if not done and info["life"] < 2 or info["status"] != self.__before_status:
             reward = self.__killed_reward
             done = True
 
         # score 连续为0
-        if self.__unchanged_score_steps > self.__continue_score_zero:
+        if not done and self.__unchanged_score_steps > self.__continue_score_zero:
             reward = self.__killed_reward
             done = True
 
         # 连续重复动作
         self.__before_actions.append(action)
-        if self.__before_actions.count(action) == self.__before_actions.maxlen:
+        if not done and self.__before_actions.count(action) == self.__before_actions.maxlen:
             reward = self.__killed_reward
             done = True
 
@@ -128,30 +150,42 @@ class ControllerStepEnv:
             self.__unchanged_reward_steps += 1
         else:
             self.__unchanged_reward_steps = 0
-        if self.__unchanged_reward_steps > self.__continue_reward_zero:
+        if not done and self.__unchanged_reward_steps > self.__continue_reward_zero:
             reward = self.__killed_reward
             done = True
 
-        if info["x_pos"] <= 128:
-            if action not in self.__right_actions:
-                reward -= 0.1
-            else:
-                reward += 0.05
+        if info["x_pos"] > 128:
+            self.flag = True
+
+        # if not self.flag:
+        if action not in self.__right_actions:
+            reward -= 0.1
+        else:
+            reward -= 0.05
 
         if info["y_pos"] <= 43:
             reward -= 0.1
 
-        return np.concatenate(states, axis=0), reward, done, info
+        if info["defeated"]:
+            reward += 1000
+
+        if self.__steps_num > 1300:
+            reward = self.__killed_reward
+            done = True
+
+        return self.states, reward, done, info
 
     def reset(self):
         self.__before_score = 0
-        self.__before_life = 2
         self.__before_status = 1
         self.__before_actions.clear()
         self.__unchanged_score_steps = 0
         self.__unchanged_reward_steps = 0
         obs = self.env.reset()
-        return np.concatenate([obs, obs, obs, obs], axis=0)
+
+        self.states = np.concatenate([obs, obs, obs, obs], axis=0)
+        self.__steps_num = 0
+        return self.states
 
     def render(self):
         self.env.render()

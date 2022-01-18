@@ -76,14 +76,16 @@ def test(rank, args, shared_model, counter):
 
 
 if __name__ == "__main__":
-    torch.manual_seed(26)
+    torch.manual_seed(681)
     env = create_atari_env("Contra-v0")
-    env.seed(26)
+    env.seed(681)
     model = ActorCritic(env.observation_space.shape[0], env.action_space)
+    model.eval()
 
     # model.load_state_dict(torch.load('model.pkl'))
     # model.load_state_dict(torch.load('model-max-reward.pkl'))
-    model.load_state_dict(torch.load('data/model/model_01_12.pkl'))
+    # model.load_state_dict(torch.load('data/model/model_01_12.pkl'))
+    model.load_state_dict(torch.load('data/model/model_01_18.pkl'))
     # model.load_state_dict(torch.load('data/model/model.pkl'))
 
     obs = env.reset()
@@ -98,7 +100,8 @@ if __name__ == "__main__":
 
     while True:
         env.render()
-        value, logit, (hx, cx) = model((state.unsqueeze(0), (hx, cx)))
+        with torch.no_grad():
+            value, logit, (hx, cx) = model((state.unsqueeze(0), (hx, cx)))
         prob = F.softmax(logit, dim=-1)
         # action = prob.multinomial(num_samples=1).numpy()[0, 0]
         action = prob.max(1, keepdim=True)[1].numpy()[0, 0]
