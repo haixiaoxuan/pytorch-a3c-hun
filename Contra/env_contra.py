@@ -240,8 +240,8 @@ class ContraEnv(NESEnv):
 
     def _get_done(self):
         """Return True if the episode is over, False otherwise."""
-        # if self._is_game_over or self._get_boss_defeated:
-        if self._is_game_over:
+        if self._is_game_over or self._get_boss_defeated:
+        # if self._is_game_over:
             return True
         return False
 
